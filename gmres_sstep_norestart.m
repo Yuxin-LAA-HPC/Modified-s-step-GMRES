@@ -1,25 +1,32 @@
-function [x, W, its, flag, error_res] = gmres_sstep_norestart(A, x0, b, s, tolres, tolH, output_res, usetolH)
+function [x, W, its, flag, error_res, error_orth, error_innerorth] = gmres_sstep_norestart(A, x0, b, s, basis_info, tolres, tolH, output_res, usetolH)
 
 % Solves the linear system Ax = b
-% using the no restarted s-step Generalized Minimal residual ( GMRES ) method.
+% using the no restarted s-step Generalized Minimal residual ( GMRES ) method
+% with monomial/Newton/Chebyshev basis.
 % Currently uses ||Ax-b|| <= tolres*(||A||*||x|| + ||b||) to check for
 % convergence in every s iteratiions.
 %
-% input   A        REAL nonsymmetric positive definite matrix
-%         x        REAL initial guess vector
-%         b        REAL right hand side vector
-%         s        INTEGER the block size
-%         tol      REAL error tolerance
-%         tolres   REAL the backward error tolerance
-%         tolH     REAL error tolerance
+% input   A            REAL nonsymmetric positive definite matrix
+%         x0           REAL initial guess vector
+%         b            REAL right hand side vector
+%         s            INTEGER the block size
+%         basis_info   Structure basis_info.type = 'monomial' or 'newton' or 'chebyshev'
+%         tol          REAL error tolerance
+%         tolres       REAL the backward error tolerance
+%         tolH         REAL error tolerance
+%         output_res   INTEGER: 1 = outputing error_res, error_orth, and error_innerorth
+%         usetolH      INTEGER: 1 = using tolH as a additional stopping criterion 
+%        
 %
-% output  x        REAL solution vector
-%         W        REAL the basis
-%         error    REAL error norm
-%         its      INTEGER number of (inner) iterations performed
-%         flag     INTEGER: 0 = solution found to tolres
-%                           1 = the tolres cannot be reached at the key dimension
-%                           2 = error: tolH is too small
+% output  x            REAL solution vector
+%         W            REAL the basis
+%         its          INTEGER number of (inner) iterations performed
+%         flag         INTEGER: 0 = solution found to tolres
+%                               1 = the tolres cannot be reached at the key dimension
+%                               2 = error: tolH is too small
+%         error_res    REAL norm of relative backward error
+%         error_orth   REAL condition number of the basis for each iteration
+%         error_inner  REAL condition number of the sub basis for each iteration
 
 x = x0;
 flag = 0;
@@ -47,6 +54,8 @@ e1(1) = 1.0;
 
 % Output the norm of backward error of each iteration.
 error_res = zeros(n, 1);
+error_orth = zeros(n, 1);
+error_innerorth = zeros(n, 1);
 if output_res == 1
     error_res(1) = norm(r)/(normb + normestA*norm(x));
 end
@@ -56,6 +65,13 @@ if (norm(r) < tolres*(normb + normestA*norm(x)))
     return;
 end
 
+% Compute/set basis parameters
+[alp, bet, gam, ~] = basisparams(s, A, basis_info);
+
+% Store the basis parameters used for output
+basis_info.alp = alp;
+basis_info.bet = bet;
+basis_info.gam = gam;
 
 % Begain the GMRES iteration.
 V(:,1) = r / norm( r );
@@ -67,11 +83,7 @@ for i = 1:ceil(ms)
     its = its + sres;
 
     % Build the Krylov basis
-    B(:, 1) = V(:, (i-1)*s+1);
-    for j = 1:sres-1
-        B(:, j+1) = A*B(:, j);
-        B(:, j+1) = B(:, j+1)/norm(B(:, j+1));
-    end
+    B = computeBasis(A, V(:, (i-1)*s+1), s, basis_info);
     W(:, (i-1)*s+1:is) = B(:, 1:sres);
    
     % Orthogonalize AB(:, 1:s) against V(:, 1:(i-1)*s+1).
@@ -101,6 +113,15 @@ for i = 1:ceil(ms)
             xtemp = x + addvec;
             error_res(j) = norm(b - A*xtemp)/(normb + normestA*norm(xtemp));
         end
+        Wtemp = W;
+        for j = 1:is
+            Wtemp(:, j) = Wtemp(:, j)/norm(Wtemp(:, j), 2);
+        end
+        for j = (i-1)*s+1:is
+            error_orth(j) = cond(Wtemp(:, 1:j));
+        end
+        error_innerorth(i) = cond(Wtemp(:, (i-1)*s+1:is));
+    
     end
 
     % Test if it reaches the "key dimension".
