@@ -14,6 +14,8 @@
 %
 % Last edited by: Erin Carson, 2021
 %
+% Copy from https://github.com/eccarson/mixedsstep.git.
+%
 
 
 function V = computeBasis(A,v0,s,basis_info)
@@ -31,10 +33,13 @@ V(:,1) = v0;
 
 % Construct the remaining basis vectors iteratively
 if(s>1)
-    V(:,2) = (A-alp(1).*speye(n))*V(:,1)./gam(1);   
+    V(:,2) = V(:,1)./gam(1);
+    V(:,2) = A*V(:,2) - alp(1).*V(:,2);
+    % V(:,2) = (A-alp(1).*speye(n))*V(:,1)./gam(1);
     if(s>2)
-        for qq = 2:(s-1)            
-            V(:,qq+1) = ((A-alp(qq).*speye(n))*V(:,qq) - bet(qq-1)*V(:,qq-1))./gam(qq);          
+        for qq = 2:(s-1)  
+            V(:,qq+1) = (A*V(:,qq) - alp(qq).*V(:,qq) - bet(qq-1)*V(:,qq-1))./gam(qq);
+            % V(:,qq+1) = ((A-alp(qq).*speye(n))*V(:,qq) - bet(qq-1)*V(:,qq-1))./gam(qq);
         end
     end
 end

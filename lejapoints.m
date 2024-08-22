@@ -1,5 +1,8 @@
 % lejapoints.m
 % Compute n Leja points from the interval [a,b]
+%
+% Copy from https://github.com/eccarson/mixedsstep.git.
+%
 
 function xleja = lejapoints(n,a,b)
 

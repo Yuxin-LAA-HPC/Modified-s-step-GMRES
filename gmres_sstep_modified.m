@@ -1,4 +1,4 @@
-function [x, W, its, flag, error_res] = gmres_sstep_modified(A, x0, b, s, tolres, tolH, output_res)
+function [x, W, its, flag, error_res, error_orth] = gmres_sstep_modified(A, x0, b, s, basis_info, tolres, tolH, output_res)
 
 % Solves the linear system Ax = b
 % using the no restarted s-step Generalized Minimal residual ( GMRES ) method.
@@ -33,7 +33,7 @@ normb = norm(b);
 % Compute initial residual 
 r = b-A*x;
 
-% initialize workspace
+% Initialize workspace
 [n, ~] = size(A);
 m = n;
 ms = m/s;
@@ -50,6 +50,7 @@ e1(1) = 1.0;
 
 % Output the norm of backward error of each iteration.
 error_res = zeros(n, 1);
+error_orth = zeros(n, 1);
 if output_res == 1
     error_res(1) = norm(r)/(normb + normestA*norm(x));
 end
@@ -59,27 +60,33 @@ if (norm(r) < tolres*(normb + normestA*norm(x)))
     return;
 end
 
+% Compute/set basis parameters
+[alp, bet, gam, ~] = basisparams(s, A, basis_info);
+
+% Store the basis parameters used for output
+basis_info.alp = alp;
+basis_info.bet = bet;
+basis_info.gam = gam;
 
 % Begain the GMRES iteration.
-V(:,1) = r / norm( r );
+% r = b - A*x;
+V(:, 1) = r/norm( r );
 svec = norm( r )*e1;
 
 for i = 1:ceil(ms)
-    sres = min(n - (i-1)*s, s);
+    sres = min(m - (i-1)*s, s);
 	is = min(i*s, m);
     its = its + sres;
 
     % Build the Krylov basis
-    B(:, 1) = V(:, (i-1)*s+1);
-    for j = 1:sres-1
-        B(:, j+1) = A*B(:, j);
-        B(:, j+1) = B(:, j+1)/norm(B(:, j+1));
-    end
+    % B = computeBasis_scal(A, V(:, (i-1)*s+1), sres, basis_info);
+    B = computeBasis(A, V(:, (i-1)*s+1), sres, basis_info);
     Z(:, (i-1)*s+1:is) = B(:, 1:sres);
 
     % Perform an extra QR to B to make B be well-conditioned.
     B(:, 1:sres) = B(:, 1:sres) - V(:, 1:(i-1)*s)*(V(:, 1:(i-1)*s)'*B(:, 1:sres));
     B(:, 1:sres) = B(:, 1:sres) - V(:, 1:(i-1)*s)*(V(:, 1:(i-1)*s)'*B(:, 1:sres));
+    
     [B(:, 1:sres), ~] = qr(B(:, 1:sres), 0);
     W(:, (i-1)*s+1:is) = B(:, 1:sres); % Store B in the output basis W.
    
@@ -109,6 +116,9 @@ for i = 1:ceil(ms)
             addvec = W(:, 1:j)*y;
             xtemp = x + addvec;
             error_res(j) = norm(b - A*xtemp)/(normb + normestA*norm(xtemp));
+        end
+        for j = (i-1)*s+1:is
+            error_orth(j) = cond(W(:, 1:j));
         end
     end
 
@@ -148,6 +158,7 @@ for i = 1:ceil(ms)
     
 end
 
+x = xtemp;
 flag = 2;
 end
 

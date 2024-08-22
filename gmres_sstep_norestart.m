@@ -83,7 +83,8 @@ for i = 1:ceil(ms)
     its = its + sres;
 
     % Build the Krylov basis
-    B = computeBasis(A, V(:, (i-1)*s+1), s, basis_info);
+    % B = computeBasis_scal(A, V(:, (i-1)*s+1), sres, basis_info);
+    B = computeBasis(A, V(:, (i-1)*s+1), sres, basis_info);
     W(:, (i-1)*s+1:is) = B(:, 1:sres);
    
     % Orthogonalize AB(:, 1:s) against V(:, 1:(i-1)*s+1).
@@ -162,6 +163,7 @@ for i = 1:ceil(ms)
     
 end
 
+x = xtemp;
 flag = 2;
 end
 

@@ -15,6 +15,8 @@
 %
 % Last edited by: Erin Carson, 2021
 %
+% Copy from https://github.com/eccarson/mixedsstep.git.
+%
 
 function [alp,bet,gam, T] = basisparams(s, A, basis_info)
 
@@ -27,7 +29,7 @@ if(strcmp(basis_info.type, 'newton'))
     if(size(A,2) < 600)
         ee = eig(full(A));
     else
-        ee = [eigs(A,2*s,'LM'),eigs(A,2*s,'SM')];
+        ee = [eigs(A,2*s,'LM')',eigs(A,2*s,'SM')'];
     end
     mx = max(ee);
     mn = min(ee);
@@ -50,7 +52,7 @@ elseif(strcmp(basis_info.type, 'chebyshev'))
     if(size(A,2) < 600)
         ee = eig(full(A));
     else
-        ee = [eigs(A,2*s,'LM'),eigs(A,2*s,'SM')];
+        ee = [eigs(A,2*s,'LM')',eigs(A,2*s,'SM')'];
     end
     mx = max(ee);
     mn = min(ee);
@@ -64,7 +66,6 @@ elseif(strcmp(basis_info.type, 'chebyshev'))
     alp = cc.*ones(s,1);
     bet = (dd)^2/(4*gamm).*ones(s-1,1);
     gam = [2*gamm; gamm.*ones(s-1,1)];
-    
     
 else % Assume monomial basis
     alp = zeros(s,1);
